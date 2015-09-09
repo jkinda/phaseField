@@ -75,6 +75,9 @@ void CoupledCHACProblem<dim>::applyInitialConditions()
 			    *this->solutionSet[fieldIndex]);
 }
 
+//nucleation model implementation (if any)
+template <int dim>
+void CoupledCHACProblem<dim>::modifySolutionFields(){}
 
 //main
 int main (int argc, char **argv)
