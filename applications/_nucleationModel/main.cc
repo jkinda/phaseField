@@ -70,7 +70,7 @@ void CoupledCHACProblem<dim>::modifySolutionFields()
     nuclei.push_back(*temp);
     //second nucleus
     temp = new nucleus;
-    temp->index=1;
+    temp->index=2;
     temp->center=dealii::Point<dim>(3*spanX/4.0,3*spanY/4.0);
     temp->radius=spanX/32.0;
     temp->seededTime=t;
@@ -78,6 +78,10 @@ void CoupledCHACProblem<dim>::modifySolutionFields()
     nuclei.push_back(*temp);
   }
   
+  //fields
+  vectorType* n=this->solutionSet[this->getFieldIndex("n")];
+  vectorType* c=this->solutionSet[this->getFieldIndex("c")];
+
   //seed nuclei
   unsigned int fieldIndex=this->getFieldIndex("n");
   std::map<dealii::types::global_dof_index, dealii::Point<dim> > support_points;
@@ -92,13 +96,13 @@ void CoupledCHACProblem<dim>::modifySolutionFields()
     for (typename std::map<dealii::types::global_dof_index, dealii::Point<dim> >::iterator it=support_points.begin(); it!=support_points.end(); ++it){
       unsigned int dof=it->first;
       //set only local owned values of the parallel vector
-      if (this->solutionSet[fieldIndex]->locally_owned_elements().is_element(dof)){
+      if (n->locally_owned_elements().is_element(dof)){
 	dealii::Point<dim> nodePoint=it->second;
 	//check conditions and seed nuclei
 	double r=nodePoint.distance(center);
 	if (r<=(radius+8*dx)){
 	  if ((t>seededTime) && (t<(seededTime+seedingTime))){
-	    (*this->solutionSet[fieldIndex])(dof)=0.5*(1.0-std::tanh((r-spanX/16.0)/(3*dx)));
+	    (*n)(dof)=0.5*(1.0-std::tanh((r-spanX/16.0)/(3*dx)));
 	  }
 	}
       }
