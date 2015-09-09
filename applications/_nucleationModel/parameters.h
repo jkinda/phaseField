@@ -22,6 +22,7 @@
 //define results output parameters
 #define writeOutput true
 #define skipOutputSteps 100
+#define outputFileDirectory "."
 
 //define Cahn-Hilliard parameters (No Gradient energy term)
 #define McV 1.0

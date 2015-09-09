@@ -67,4 +67,9 @@
 #define skipImplicitSolves 1
 #endif
 
+//output directory to write output files
+#ifndef outputFileDirectory
+#define outputFileDirectory "."
+#endif
+
 #endif

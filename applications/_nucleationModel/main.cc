@@ -57,35 +57,65 @@ void CoupledCHACProblem<dim>::modifySolutionFields()
   unsigned int inc=this->currentIncrement;
   double dx=spanX/std::pow(2.0,refineFactor);
 
+  //nucleation parameters
+  double minDistBetwenNuclei=spanX/2.0;
+  unsigned int maxNumberNuclei=5;
+
+  //get the list of node points in the domain
+  std::map<dealii::types::global_dof_index, dealii::Point<dim> > support_points;
+  dealii::DoFTools::map_dofs_to_support_points (dealii::MappingQ1<dim>(), *this->dofHandlersSet[0], support_points);   
+  //fields
+  vectorType* n=this->solutionSet[this->getFieldIndex("n")];
+  vectorType* c=this->solutionSet[this->getFieldIndex("c")];
+
   //populate nuclei vector
+  unsigned int index=-1;
   if (inc==1){
     nucleus* temp;
     //first nucleus
+    /*
     temp = new nucleus;
-    temp->index=1;
+    temp->index=++index; 
     temp->center=dealii::Point<dim>(spanX/2.0,spanY/2.0);
     temp->radius=spanX/32.0;
     temp->seededTime=t;
     temp->seedingTime=this->finalTime/10.0;
     nuclei.push_back(*temp);
-    //second nucleus
-    temp = new nucleus;
-    temp->index=2;
-    temp->center=dealii::Point<dim>(3*spanX/4.0,3*spanY/4.0);
-    temp->radius=spanX/32.0;
-    temp->seededTime=t;
-    temp->seedingTime=this->finalTime/10.0;
-    nuclei.push_back(*temp);
+    */
+    //add nuclei based on concentration field values
+    //loop over all points in the domain
+    for (typename std::map<dealii::types::global_dof_index, dealii::Point<dim> >::iterator it=support_points.begin(); it!=support_points.end(); ++it){
+      unsigned int dof=it->first;
+      //set only local owned values of the parallel vector
+      if (n->locally_owned_elements().is_element(dof)){
+	dealii::Point<dim> nodePoint=it->second;
+	double nValue=(*n)(dof);
+	double cValue=(*c)(dof);
+	if ((cValue>0.0305) and (nuclei.size()<maxNumberNuclei)){
+	  //loop over all existing nuclei to check if they are in the vicinity
+	  bool isClose=false;
+	  for (std::vector<nucleus>::iterator thisNuclei=nuclei.begin(); thisNuclei!=nuclei.end(); ++thisNuclei){
+	    if (thisNuclei->center.distance(nodePoint)<minDistBetwenNuclei){
+	      isClose=true;
+	    }
+	  }
+	  if (!isClose){
+	    temp = new nucleus;
+	    temp->index=++index; 
+	    temp->center=nodePoint;
+	    temp->radius=spanX/32.0;
+	    temp->seededTime=t;
+	    temp->seedingTime=this->finalTime;
+	    nuclei.push_back(*temp);
+	  }
+	}
+      }
+    }
+    this->pcout << "number of nuclei seeded: " << nuclei.size() << std::endl;
   }
-  
-  //fields
-  vectorType* n=this->solutionSet[this->getFieldIndex("n")];
-  vectorType* c=this->solutionSet[this->getFieldIndex("c")];
 
   //seed nuclei
   unsigned int fieldIndex=this->getFieldIndex("n");
-  std::map<dealii::types::global_dof_index, dealii::Point<dim> > support_points;
-  dealii::DoFTools::map_dofs_to_support_points (dealii::MappingQ1<dim>(), *this->dofHandlersSet[fieldIndex], support_points);   
   for (std::vector<nucleus>::iterator thisNuclei=nuclei.begin(); thisNuclei!=nuclei.end(); ++thisNuclei){
     //
     dealii::Point<dim> center=thisNuclei->center;

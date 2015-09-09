@@ -34,8 +34,9 @@ void MatrixFreePDE<dim>::outputResults(){
 
   //write to results file
   //file name
-  const std::string filename = "solution-" + \
-    Utilities::int_to_string (currentIncrement, std::ceil(std::log10(totalIncrements))+1);
+  char buffer[100];
+  sprintf(buffer, "%s/solution-%s", outputFileDirectory, Utilities::int_to_string (currentIncrement, std::ceil(std::log10(totalIncrements))+1).c_str());
+  const std::string filename(buffer);
   //create file stream
   std::ofstream output ((filename +					\
 			 "." + Utilities::int_to_string (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD), \
