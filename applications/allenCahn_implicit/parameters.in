@@ -34,11 +34,11 @@ set Element degree = 1
 # Set the time step parameters
 # =================================================================================
 # The size of the time step
-set Time step = 1.0e-2
+set Time step = 1.0e0
 
 # The simulation ends when either the number of time steps is reached or the
 # simulation time is reached.
-set Number of time steps = 10 #5000
+set Number of time steps = 100 #5000
 
 # =================================================================================
 # Set the output parameters

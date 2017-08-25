@@ -14,9 +14,9 @@ class CHOperator : public Subscriptor
 
     public:
         // Temporary hard-coded values for testing purposes
-        double dt = 1.0e-1;
-        double lambda = 2.0;
-        double mobility = 2.0/(0.9);
+        double dt = 1.0e0;
+        double lambda = 1.5;
+        double mobility = 1.0;
 
 
 
@@ -24,7 +24,6 @@ class CHOperator : public Subscriptor
     userInputParameters<dim> userInputs;
 
     void clear();
-    void reinit (const DoFHandler<dim>  &dof_handler, const ConstraintMatrix  &constraints, const unsigned int level = numbers::invalid_unsigned_int);
     unsigned int m () const;
     unsigned int n () const;
     void invMK (vectorType &dst, const vectorType &src) const;
@@ -65,39 +64,6 @@ template <int dim, int degree, typename number>
 void CHOperator<dim,degree,number>::clear ()
 {
     data.clear();
-}
-//Initialize Matrix Free data structure
-template <int dim, int degree, typename number>
-void CHOperator<dim,degree,number>::reinit (const DoFHandler<dim>  &dof_handler, const ConstraintMatrix  &constraint, const unsigned int level)
-{
-    typename MatrixFree<dim,number>::AdditionalData additional_data;
-    additional_data.mpi_communicator = MPI_COMM_WORLD;
-    additional_data.tasks_parallel_scheme = MatrixFree<dim,number>::AdditionalData::partition_partition;
-    additional_data.mapping_update_flags = (update_gradients | update_JxW_values);
-    QGaussLobatto<1> quadrature (degree+1);
-    data.reinit (dof_handler, constraint, quadrature, additional_data);
-
-    //Compute  invM
-    data.initialize_dof_vector (invM);
-    VectorizedArray<double> one = make_vectorized_array (1.0);
-    //Select gauss lobatto quad points which are suboptimal but give diogonal M
-    FEEvaluation<dim,degree> fe_eval(data);
-    const unsigned int            n_q_points = fe_eval.n_q_points;
-    for (unsigned int cell=0; cell<data.n_macro_cells(); ++cell)
-    {
-        fe_eval.reinit(cell);
-        for (unsigned int q=0; q<n_q_points; ++q)
-        fe_eval.submit_value(one,q);
-        fe_eval.integrate (true,false);
-        fe_eval.distribute_local_to_global (invM);
-    }
-    invM.compress(VectorOperation::add);
-    //
-    for (unsigned int k=0; k<invM.local_size(); ++k)
-    if (std::abs(invM.local_element(k))>1e-15)
-    invM.local_element(k) = 1./invM.local_element(k);
-    else
-    invM.local_element(k) = 0;
 }
 
 //Implement finite element operator application

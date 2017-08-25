@@ -75,7 +75,7 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
             X.reinit  (Mu);
 
             system_matrix.X = &X;
-            
+
             //Begin solve
             //compute f(c0)+lambda*M^(-1)*K*c0
 
@@ -83,7 +83,8 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
             double c0;
             for (unsigned int k=0; k<solutionSet[fieldIndex]->local_size(); ++k){
               c0=solutionSet[fieldIndex]->local_element(k);
-              double fcV = (-AV*(c0-cmV) + BV*(c0-cmV)*(c0-cmV)*(c0-cmV) + caV*(c0-caV)*(c0-caV)*(c0-caV) + cbV*(c0-cbV)*(c0-cbV)*(c0-cbV));
+              //double fcV = (-AV*(c0-cmV) + BV*(c0-cmV)*(c0-cmV)*(c0-cmV) + caV*(c0-caV)*(c0-caV)*(c0-caV) + cbV*(c0-cbV)*(c0-cbV)*(c0-cbV));
+              double fcV = 4.0*c0*(c0-1.0)*(c0-0.5);
               X.local_element(k)=fcV+ system_matrix.lambda*X.local_element(k); //f(c0)+lambda*M^(-1)*K*c0
             }
 
