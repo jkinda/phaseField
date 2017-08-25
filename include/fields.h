@@ -4,6 +4,7 @@
 #include <deal.II/base/conditional_ostream.h>
 
 #include "userInputParameters.h"
+#include "varTypeEnums.h"
 
 template<int dim>
 class Field

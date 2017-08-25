@@ -1,6 +1,9 @@
 //solveIncrement() method for MatrixFreePDE class
 
 #include "../../include/matrixFreePDE.h"
+#include "../../include/varTypeEnums.h"
+#include "../../include/matrixFreeImplicitOperator.h"
+
 
 //solve each time increment
 template <int dim, int degree>
@@ -22,7 +25,9 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
         // Currently commented out because it isn't working yet
         //applyNeumannBCs();
 
-        //Parabolic (first order derivatives in time) fields
+        // --------------------------------------------------------------------
+        // Explicit parabolic (first order derivatives in time) fields
+        // --------------------------------------------------------------------
         if (fields[fieldIndex].pdetype==PARABOLIC){
 
             // Explicit-time step each DOF
@@ -46,7 +51,70 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
                 pcout<<buffer;
             }
         }
+
+        // --------------------------------------------------------------------
+        // Implicit parabolic (first order derivatives in time) fields
+        // --------------------------------------------------------------------
+        else if (fields[fieldIndex].pdetype==IMPLICIT_PARABOLIC){
+
+            // Initially, I'm not going to worry about Dirichlet BCs, just trying to get the right matrix to be solved
+            // some hard-coded constants for testing
+            double caV = 0.05;
+            double cbV = 0.95;
+            double cmV = 0.5*(caV+cbV);
+            double AV = 2.0;
+            double BV = AV/((caV-cmV)*(caV-cmV));
+
+            CHOperator<dim,degree,double> system_matrix(userInputs,matrixFreeObject);
+
+            system_matrix.invM = invM;
+
+            vectorType X, Mu;
+
+            Mu.reinit (invM);
+            X.reinit  (Mu);
+
+            system_matrix.X = &X;
+            
+            //Begin solve
+            //compute f(c0)+lambda*M^(-1)*K*c0
+
+            system_matrix.invMK(X,*solutionSet[fieldIndex]); //M^(-1)*K*c0
+            double c0;
+            for (unsigned int k=0; k<solutionSet[fieldIndex]->local_size(); ++k){
+              c0=solutionSet[fieldIndex]->local_element(k);
+              double fcV = (-AV*(c0-cmV) + BV*(c0-cmV)*(c0-cmV)*(c0-cmV) + caV*(c0-caV)*(c0-caV)*(c0-caV) + cbV*(c0-cbV)*(c0-cbV)*(c0-cbV));
+              X.local_element(k)=fcV+ system_matrix.lambda*X.local_element(k); //f(c0)+lambda*M^(-1)*K*c0
+            }
+
+            //(1 + mobility*dt*lambda*M^(-1)*K*M^(-1)*K)Mu=f(c0)+lambda*M^(-1)*K*c0
+            //cg.solve(system_matrix,Mu,X,PreconditionIdentity());
+
+            //solver controls
+            double tol_value;
+            if (userInputs.abs_tol == true){
+                tol_value = userInputs.solver_tolerance;
+            }
+            else {
+                tol_value = userInputs.solver_tolerance*residualSet[fieldIndex]->l2_norm();
+            }
+            SolverControl solver_control(userInputs.max_solver_iterations, tol_value);
+
+            // Perform the actual conjugate gradient solve
+            SolverCG<vectorType>              solver (solver_control);
+            solver.solve(system_matrix,Mu,X,PreconditionIdentity());
+
+
+            //c=c0-mobility*dt*M^(-1)*K*mu
+            system_matrix.invMK(X,Mu);
+            X*=(system_matrix.mobility*system_matrix.dt);
+            *solutionSet[fieldIndex]-=X;
+
+        }
+
+        // --------------------------------------------------------------------
         //Elliptic (time-independent) fields
+        // --------------------------------------------------------------------
         else if (fields[fieldIndex].pdetype==ELLIPTIC){
 
             //implicit solve
@@ -116,13 +184,13 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
         //Hyperbolic (second order derivatives in time) fields and general
         //non-linear PDE types not yet implemented
         else{
-            pcout << "matrixFreePDE.h: unknown field pdetype\n";
+            pcout << "PRISMS-PF Error: solveIncrement.cc: unknown equation type, given pdetype is " << fields[fieldIndex].pdetype << "\n";
             exit(-1);
         }
 
         //check if solution is nan
         if (!numbers::is_finite(solutionSet[fieldIndex]->l2_norm())){
-            sprintf(buffer, "ERROR: field '%s' solution is NAN. exiting.\n\n",
+            sprintf(buffer, "PRISMS-PF ERROR: field '%s' solution is NAN. exiting.\n\n",
             fields[fieldIndex].name.c_str());
             pcout<<buffer;
             exit(-1);

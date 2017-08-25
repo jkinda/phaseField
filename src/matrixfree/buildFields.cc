@@ -23,9 +23,12 @@ void MatrixFreePDE<dim,degree>::buildFields(){
 			  else if (userInputs.var_eq_type[i] == PARABOLIC){
 				  fields.push_back(Field<dim>(SCALAR, PARABOLIC, userInputs.var_name[i]));
 			  }
+			  else if (userInputs.var_eq_type[i] == IMPLICIT_PARABOLIC){
+				  fields.push_back(Field<dim>(SCALAR, IMPLICIT_PARABOLIC, userInputs.var_name[i]));
+			  }
 			  else{
 				  // Need to change to throw an exception
-				  std::cerr << "Error: Equation type must be ELLIPTIC or PARABOLIC " << std::endl;
+				  std::cerr << "Error: Equation type must be ELLIPTIC, PARABOLIC, or IMPLICIT_PARABOLIC" << std::endl;
 			  }
 		  }
 		  else if (userInputs.var_type[i] == VECTOR){
@@ -35,13 +38,19 @@ void MatrixFreePDE<dim,degree>::buildFields(){
 			  else if (userInputs.var_eq_type[i] == PARABOLIC){
 				  fields.push_back(Field<dim>(VECTOR, PARABOLIC, userInputs.var_name[i]));
 			  }
+			  else if (userInputs.var_eq_type[i] == IMPLICIT_PARABOLIC){
+				  fields.push_back(Field<dim>(VECTOR, IMPLICIT_PARABOLIC, userInputs.var_name[i]));
+			  }
 			  else{
 				  // Need to change to throw an exception
-				  std::cerr << "Error: Variable type must be SCALAR or VECTOR " << std::endl;
+				  std::cerr << "Error: Equation type must be ELLIPTIC, PARABOLIC, or IMPLICIT_PARABOLIC" << std::endl;
 			  }
 		  }
+		  else{
+			  // Need to change to throw an exception
+			  std::cerr << "Error: Variable type must be SCALAR or VECTOR " << std::endl;
+		  }
 	  }
-
 }
 
 #include "../../include/matrixFreePDE_template_instantiations.h"

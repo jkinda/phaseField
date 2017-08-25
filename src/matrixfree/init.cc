@@ -48,7 +48,7 @@ template <int dim, int degree>
 		 pcout << buffer;
 
 		 // Check if any time dependent fields present (note: I should get rid of parabolicFieldIndex and ellipticFieldIndex, they only work if there is at max one of each)
-		 if (it->pdetype==PARABOLIC){
+		 if (it->pdetype==PARABOLIC || it->pdetype==IMPLICIT_PARABOLIC){
 			 isTimeDependentBVP=true;
 			 parabolicFieldIndex=it->index;
 		 }

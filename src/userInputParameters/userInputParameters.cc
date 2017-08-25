@@ -96,7 +96,7 @@ userInputParameters<dim>::userInputParameters(inputFileReader & input_file_reade
     // If all of the variables are ELLIPTIC, then totalIncrements should be 1 and finalTime should be 0
     bool only_elliptic_pdes = true;
     for (unsigned int i=0; i<var_eq_type.size(); i++){
-        if (var_eq_type.at(i) == PARABOLIC){
+        if (var_eq_type.at(i) == PARABOLIC || var_eq_type.at(i) == IMPLICIT_PARABOLIC){
             only_elliptic_pdes = false;
             break;
         }

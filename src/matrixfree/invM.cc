@@ -9,7 +9,7 @@ void MatrixFreePDE<dim,degree>::computeInvM(){
 	bool invMInitialized=false;
 	unsigned int parabolicFieldIndex=0;
 	for(unsigned int fieldIndex=0; fieldIndex<fields.size(); fieldIndex++){
-		if (fields[fieldIndex].pdetype==PARABOLIC){
+		if (fields[fieldIndex].pdetype==PARABOLIC || fields[fieldIndex].pdetype==IMPLICIT_PARABOLIC){
 			matrixFreeObject.initialize_dof_vector (invM, fieldIndex);
 			parabolicFieldIndex=fieldIndex;
 			invMInitialized=true;
@@ -25,7 +25,7 @@ void MatrixFreePDE<dim,degree>::computeInvM(){
 	//compute invM
 	matrixFreeObject.initialize_dof_vector (invM, parabolicFieldIndex);
 	invM=0.0;
-  
+
 	//select gauss lobatto quadrature points which are suboptimal but give diagonal M
 	if (fields[parabolicFieldIndex].type==SCALAR){
 		VectorizedArray<double> one = make_vectorized_array (1.0);
