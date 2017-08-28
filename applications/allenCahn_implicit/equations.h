@@ -14,7 +14,14 @@ void variableAttributeLoader::loadVariableAttributes(){
 	set_need_hessian				(0,false);
 
 	set_need_value_residual_term	(0,true);
-	set_need_gradient_residual_term	(0,true);
+	set_need_gradient_residual_term	(0,false);
+
+	set_need_value_LHS				(0,true);
+	set_need_gradient_LHS			(0,true);
+	set_need_hessian_LHS				(0,false);
+
+	set_need_value_residual_term_LHS		(0,true);
+	set_need_gradient_residual_term_LHS	(0,true);
 }
 
 // =================================================================================
@@ -39,11 +46,10 @@ scalargradType nx = variable_list.get_scalar_gradient(0);
 // can be set here.
 scalarvalueType fnV = (4.0*n*(n-1.0)*(n-0.5));
 scalarvalueType rnV = (n-constV(userInputs.dtValue*MnV)*fnV);
-scalargradType rnxV = (-constV(userInputs.dtValue*KnV*MnV)*nx);
 
 // Residuals for the equation to evolve the order parameter
 variable_list.set_scalar_value_residual_term(0,rnV);
-variable_list.set_scalar_gradient_residual_term(0,rnxV);
+
 
 }
 
@@ -65,4 +71,18 @@ variable_list.set_scalar_gradient_residual_term(0,rnxV);
 template <int dim, int degree>
 void customPDE<dim,degree>::residualLHS(variableContainer<dim,degree,dealii::VectorizedArray<double> > & variable_list,
 		dealii::Point<dim, dealii::VectorizedArray<double> > q_point_loc) const {
+
+		// The order parameter and its derivatives
+		scalarvalueType n = variable_list.get_scalar_value(0);
+		scalargradType nx = variable_list.get_scalar_gradient(0);
+
+		// Parameters in the residual equations and expressions for the residual equations
+		// can be set here.
+		scalarvalueType fnV = (4.0*n*(n-1.0)*(n-0.5));
+		scalarvalueType rnV = (n-constV(userInputs.dtValue*MnV)*fnV);
+
+		// Residuals for the equation to evolve the order parameter
+		variable_list.set_scalar_value_residual_term(0,n);
+		variable_list.set_scalar_gradient_residual_term(0,constV(MnV*KnV*userInputs.dtValue)*nx);
+
 }

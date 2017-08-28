@@ -2,8 +2,6 @@
 
 #include "../../include/matrixFreePDE.h"
 #include "../../include/varTypeEnums.h"
-#include "../../include/matrixFreeImplicitOperator.h"
-
 
 //solve each time increment
 template <int dim, int degree>
@@ -59,36 +57,11 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
 
             // Initially, I'm not going to worry about Dirichlet BCs, just trying to get the right matrix to be solved
 
-            // Allen-Cahn
-            // some hard-coded constants for testing
-
-
-            ACOperator<dim,degree,double> system_matrix(userInputs,matrixFreeObject);
-
-            system_matrix.invM = invM;
-
-            vectorType X, Mu;
-
-            Mu.reinit (invM);
-            X.reinit  (Mu);
-
-            system_matrix.X = &X;
-
             //Begin solve
-            //compute fn(n0)+lambda*M^(-1)*K*n0
+            //RHS computed in residualRHS: n0 - dt*L*fn(n0)
 
-            system_matrix.invMK(X,*solutionSet[fieldIndex]); //M^(-1)*K*n0
-            double n0;
-            for (unsigned int k=0; k<solutionSet[fieldIndex]->local_size(); ++k){
-              n0=solutionSet[fieldIndex]->local_element(k);
-              double fnV = 4.0*n0*(n0-1.0)*(n0-0.5);
-
-              X.local_element(k) = n0 - system_matrix.dt * system_matrix.mobility * fnV; // n0 - dt*L*fn(n0)
-
-              //X.local_element(k)=fnV+ system_matrix.lambda*X.local_element(k); //fn(n0)+lambda*M^(-1)*K*n0
-            }
-
-            //(1 + mobility*dt*lambda*M^(-1)*K*M^(-1)*K)Mu=f(c0)+lambda*M^(-1)*K*c0
+            // Matrix equation:
+            // (1 + L*dt*lambda*M^(-1)*K) n = n0  - dt*L*fn(n0)
 
             //solver controls
             double tol_value;
@@ -102,7 +75,7 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
 
             // Perform the actual conjugate gradient solve
             SolverCG<vectorType>              solver (solver_control);
-            solver.solve(system_matrix,*solutionSet[fieldIndex],X,PreconditionIdentity());
+            solver.solve(*this,*solutionSet[fieldIndex],*residualSet[fieldIndex],PreconditionIdentity());
 
             sprintf(buffer, "field '%2s' [implicit solve]: initial residual:%12.6e, current residual:%12.6e, nsteps:%u, tolerance criterion:%12.6e, solution: %12.6e\n", \
             fields[fieldIndex].name.c_str(),			\
@@ -110,55 +83,6 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
             solver_control.last_value(),				\
             solver_control.last_step(), solver_control.tolerance(), solutionSet[fieldIndex]->l2_norm());
             pcout<<buffer;
-
-            // Cahn-Hilliard, modified from Shiva's code from the first CHiMaD Hackathon
-            // some hard-coded constants for testing
-            /*
-            CHOperator<dim,degree,double> system_matrix(userInputs,matrixFreeObject);
-
-            system_matrix.invM = invM;
-
-            vectorType X, Mu;
-
-            Mu.reinit (invM);
-            X.reinit  (Mu);
-
-            system_matrix.X = &X;
-
-            //Begin solve
-            //compute fc(c0)+lambda*M^(-1)*K*c0
-
-            system_matrix.invMK(X,*solutionSet[fieldIndex]); //M^(-1)*K*c0
-            double c0;
-            for (unsigned int k=0; k<solutionSet[fieldIndex]->local_size(); ++k){
-              c0=solutionSet[fieldIndex]->local_element(k);
-              double fcV = 4.0*c0*(c0-1.0)*(c0-0.5);
-              X.local_element(k)=fcV+ system_matrix.lambda*X.local_element(k); //f(c0)+lambda*M^(-1)*K*c0
-            }
-
-            //(1 + mobility*dt*lambda*M^(-1)*K*M^(-1)*K)Mu=f(c0)+lambda*M^(-1)*K*c0
-
-            //solver controls
-            double tol_value;
-            if (userInputs.abs_tol == true){
-                tol_value = userInputs.solver_tolerance;
-            }
-            else {
-                tol_value = userInputs.solver_tolerance*residualSet[fieldIndex]->l2_norm();
-            }
-            SolverControl solver_control(userInputs.max_solver_iterations, tol_value);
-
-            // Perform the actual conjugate gradient solve
-            SolverCG<vectorType>              solver (solver_control);
-            solver.solve(system_matrix,Mu,X,PreconditionIdentity());
-
-
-            //c=c0-mobility*dt*M^(-1)*K*mu
-            system_matrix.invMK(X,Mu);
-            X*=(system_matrix.mobility*system_matrix.dt);
-            *solutionSet[fieldIndex]-=X;
-
-            */
 
         }
 
