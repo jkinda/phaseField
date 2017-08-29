@@ -74,12 +74,7 @@ void customPDE<dim,degree>::residualLHS(variableContainer<dim,degree,dealii::Vec
 
 		// The order parameter and its derivatives
 		scalarvalueType n = variable_list.get_scalar_value(0);
-		scalargradType nx = variable_list.get_scalar_gradient(0);
-
-		// Parameters in the residual equations and expressions for the residual equations
-		// can be set here.
-		scalarvalueType fnV = (4.0*n*(n-1.0)*(n-0.5));
-		scalarvalueType rnV = (n-constV(userInputs.dtValue*MnV)*fnV);
+		scalargradType nx = variable_list.get_scalar_gradient(0);	
 
 		// Residuals for the equation to evolve the order parameter
 		variable_list.set_scalar_value_residual_term(0,n);

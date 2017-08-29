@@ -57,12 +57,6 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
 
             // Initially, I'm not going to worry about Dirichlet BCs, just trying to get the right matrix to be solved
 
-            //Begin solve
-            //RHS computed in residualRHS: n0 - dt*L*fn(n0)
-
-            // Matrix equation:
-            // (1 + L*dt*lambda*M^(-1)*K) n = n0  - dt*L*fn(n0)
-
             //solver controls
             double tol_value;
             if (userInputs.abs_tol == true){
@@ -74,7 +68,7 @@ void MatrixFreePDE<dim,degree>::solveIncrement(){
             SolverControl solver_control(userInputs.max_solver_iterations, tol_value);
 
             // Perform the actual conjugate gradient solve
-            SolverCG<vectorType>              solver (solver_control);
+            SolverCG<vectorType> solver (solver_control);
             solver.solve(*this,*solutionSet[fieldIndex],*residualSet[fieldIndex],PreconditionIdentity());
 
             sprintf(buffer, "field '%2s' [implicit solve]: initial residual:%12.6e, current residual:%12.6e, nsteps:%u, tolerance criterion:%12.6e, solution: %12.6e\n", \
