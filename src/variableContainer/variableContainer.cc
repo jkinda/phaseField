@@ -197,6 +197,31 @@ void variableContainer<dim,degree,T>::reinit_and_eval_LHS(const vectorType &src,
 
 }
 
+/**
+* This is specialized for the RHS for nonexplicit fields. It can access old versions of the fields.
+*/
+template <int dim, int degree, typename T>
+void variableContainer<dim,degree,T>::reinit_and_eval_nonexplicit_RHS(const std::vector<vectorType*> &src, const std::vector<vectorType*> &old_src, unsigned int cell){
+
+    // DOESN'T ACTUALLY HAVE ANYTHING FOR OLD FIELDS YET
+
+    for (unsigned int i=0; i<num_var; i++){
+        if (varInfoList[i].var_needed){
+            if (varInfoList[i].is_scalar) {
+                scalar_vars[varInfoList[i].scalar_or_vector_index].reinit(cell);
+                scalar_vars[varInfoList[i].scalar_or_vector_index].read_dof_values(*src[i]);
+                scalar_vars[varInfoList[i].scalar_or_vector_index].evaluate(varInfoList[i].need_value, varInfoList[i].need_gradient, varInfoList[i].need_hessian);
+            }
+            else {
+                vector_vars[varInfoList[i].scalar_or_vector_index].reinit(cell);
+                vector_vars[varInfoList[i].scalar_or_vector_index].read_dof_values(*src[i]);
+                vector_vars[varInfoList[i].scalar_or_vector_index].evaluate(varInfoList[i].need_value, varInfoList[i].need_gradient, varInfoList[i].need_hessian);
+            }
+        }
+    }
+}
+
+
 template <int dim, int degree, typename T>
 void variableContainer<dim,degree,T>::reinit(unsigned int cell){
 

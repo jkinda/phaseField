@@ -78,8 +78,8 @@ template <int dim, int degree>
              isTimeDependentBVP=true;
              ellipticFieldIndex=it->index;
              hasNonExplicitEquation=true;
-             std::cerr << "PRISMS-PF Error: IMPLICIT_TIME_DEPENDENT equation types are not currently supported" << std::endl;
-             abort();
+             //std::cerr << "PRISMS-PF Error: IMPLICIT_TIME_DEPENDENT equation types are not currently supported" << std::endl;
+             //abort();
          }
          else if (it->pdetype==AUXILIARY){
              parabolicFieldIndex=it->index;
@@ -144,6 +144,8 @@ template <int dim, int degree>
 
 		 // Add a constraint to fix the value at the origin to zero if all BCs are zero-derivative or periodic
 		 std::vector<int> rigidBodyModeComponents;
+
+         // THESE SHOULD BE ADDED BACK IN!
 		 //getComponentsWithRigidBodyModes(rigidBodyModeComponents);
 		 //setRigidBodyModeConstraints(rigidBodyModeComponents,constraintsOther,dof_handler);
 
@@ -202,13 +204,19 @@ template <int dim, int degree>
 	 // Setup solution vectors
 	 pcout << "initializing parallel::distributed residual and solution vectors\n";
 	 for(unsigned int fieldIndex=0; fieldIndex<fields.size(); fieldIndex++){
-		 vectorType *U, *R;
+		 vectorType *U, *R, *O;
 
 		 U=new vectorType; R=new vectorType;
 		 solutionSet.push_back(U); residualSet.push_back(R);
 		 matrixFreeObject.initialize_dof_vector(*R,  fieldIndex); *R=0;
 
 		 matrixFreeObject.initialize_dof_vector(*U,  fieldIndex); *U=0;
+
+         if (fields[fieldIndex].pdetype==IMPLICIT_TIME_DEPENDENT) {
+             O=new vectorType;
+             oldSolutionSet.push_back(O);
+             matrixFreeObject.initialize_dof_vector(*O,  fieldIndex); *O=0;
+         }
 
 		 // Initializing temporary dU vector required for implicit solves of the elliptic equation.
 		 if (fields[fieldIndex].pdetype==TIME_INDEPENDENT || fields[fieldIndex].pdetype==IMPLICIT_TIME_DEPENDENT || (fields[fieldIndex].pdetype==AUXILIARY && userInputs.var_nonlinear[fieldIndex])){

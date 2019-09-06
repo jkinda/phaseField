@@ -74,6 +74,7 @@ public:
     void reinit_and_eval(const std::vector<vectorType*> &src, unsigned int cell);
     void reinit_and_eval_change_in_solution(const vectorType &src, unsigned int cell, unsigned int var_being_solved);
     void reinit_and_eval_LHS(const vectorType &src, const std::vector<vectorType*> solutionSet, unsigned int cell, unsigned int var_being_solved);
+    void reinit_and_eval_nonexplicit_RHS(const std::vector<vectorType*> &src, const std::vector<vectorType*> &old_src, unsigned int cell);
 
     // Only initialize the FEEvaluation object for each variable (used for post-processing)
     void reinit(unsigned int cell);

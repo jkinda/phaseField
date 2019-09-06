@@ -12,6 +12,15 @@ void MatrixFreePDE<dim,degree>::solveIncrement(bool skip_time_dependent){
     Timer time;
     char buffer[200];
 
+    // For fields solved implicitly, store the old solution
+    unsigned int implicit_index = 0;
+    for(unsigned int fieldIndex=0; fieldIndex<fields.size(); fieldIndex++){
+        if (fields[fieldIndex].pdetype==IMPLICIT_TIME_DEPENDENT) {
+            *oldSolutionSet.at(implicit_index) = *solutionSet.at(implicit_index);
+            implicit_index++;
+        }
+    }
+
     // Get the RHS of the explicit equations
     if (hasExplicitEquation && !skip_time_dependent){
         computeExplicitRHS();
@@ -67,7 +76,6 @@ void MatrixFreePDE<dim,degree>::solveIncrement(bool skip_time_dependent){
     }
 
     // Now, update the non-explicit variables
-    // For the time being, this is just the elliptic equations, but implicit parabolic and auxilary equations should also be here
     if (hasNonExplicitEquation){
 
         bool nonlinear_it_converged = false;
@@ -77,9 +85,6 @@ void MatrixFreePDE<dim,degree>::solveIncrement(bool skip_time_dependent){
             nonlinear_it_converged = true; // Set to true here and will be set to false if any variable isn't converged
 
             // Update residualSet for the non-explicitly updated variables
-            //compute_nonexplicit_RHS()
-            // Ideally, I'd just do this for the non-explicit variables, but for now I'll do all of them
-            // this is a little redundant, but hopefully not too terrible
             computeNonexplicitRHS();
 
             for(unsigned int fieldIndex=0; fieldIndex<fields.size(); fieldIndex++){

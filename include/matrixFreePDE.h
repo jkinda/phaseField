@@ -187,6 +187,9 @@ class MatrixFreePDE:public Subscriptor
   /*Vector of parallel solution transfer objects. This is used only when adaptive meshing is enabled.*/
   std::vector<parallel::distributed::SolutionTransfer<dim, vectorType>*> soltransSet;
 
+  /*Vector all the old value of solution vectors for variables updated implicitly.*/
+  std::vector<vectorType*>             oldSolutionSet;
+
   // Objects for vectors
   DoFHandler<dim>* vector_dofHandler;
   FESystem<dim>* vector_fe;
