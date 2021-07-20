@@ -19,9 +19,15 @@ void EquationDependencyParser::parse(
         need_value_nonexplicit_RHS.push_back(false);
         need_gradient_nonexplicit_RHS.push_back(false);
         need_hessian_nonexplicit_RHS.push_back(false);
+        need_old_value_nonexplicit_RHS.push_back(false);
+        need_old_gradient_nonexplicit_RHS.push_back(false);
+        need_old_hessian_nonexplicit_RHS.push_back(false);
         need_value_nonexplicit_LHS.push_back(false);
         need_gradient_nonexplicit_LHS.push_back(false);
         need_hessian_nonexplicit_LHS.push_back(false);
+        need_old_value_nonexplicit_LHS.push_back(false);
+        need_old_gradient_nonexplicit_LHS.push_back(false);
+        need_old_hessian_nonexplicit_LHS.push_back(false);
         need_value_change_nonexplicit_LHS.push_back(false);
         need_gradient_change_nonexplicit_LHS.push_back(false);
         need_hessian_change_nonexplicit_LHS.push_back(false);
@@ -78,14 +84,14 @@ void EquationDependencyParser::parse(
 
             bool need_value_residual_entry, need_gradient_residual_entry, single_var_nonlinear_RHS, single_var_nonlinear_LHS;
 
-            parseDependencyListRHS(var_name, var_eq_type, i, sorted_dependencies_value_RHS.at(i), sorted_dependencies_gradient_RHS.at(i), need_value_nonexplicit_RHS, need_gradient_nonexplicit_RHS, need_hessian_nonexplicit_RHS, need_value_residual_entry, need_gradient_residual_entry, single_var_nonlinear_RHS);
+            parseDependencyListImplicitRHS(var_name, var_eq_type, i, sorted_dependencies_value_RHS.at(i), sorted_dependencies_gradient_RHS.at(i), need_value_nonexplicit_RHS, need_gradient_nonexplicit_RHS, need_hessian_nonexplicit_RHS, need_old_value_nonexplicit_RHS, need_old_gradient_nonexplicit_RHS, need_old_hessian_nonexplicit_RHS, need_value_residual_entry, need_gradient_residual_entry, single_var_nonlinear_RHS);
 
             //std::cout << "RHS Nonlinear flag for var " << i << " :" << single_var_nonlinear_RHS << std::endl;
 
             need_value_residual_nonexplicit_RHS.push_back(need_value_residual_entry);
             need_gradient_residual_nonexplicit_RHS.push_back(need_gradient_residual_entry);
 
-            parseDependencyListLHS(var_name, var_eq_type, i, sorted_dependencies_value_LHS.at(i), sorted_dependencies_gradient_LHS.at(i), need_value_nonexplicit_LHS, need_gradient_nonexplicit_LHS, need_hessian_nonexplicit_LHS, need_value_change_nonexplicit_LHS, need_gradient_change_nonexplicit_LHS, need_hessian_change_nonexplicit_LHS, need_value_residual_entry, need_gradient_residual_entry, single_var_nonlinear_LHS);
+            parseDependencyListLHS(var_name, var_eq_type, i, sorted_dependencies_value_LHS.at(i), sorted_dependencies_gradient_LHS.at(i), need_value_nonexplicit_LHS, need_gradient_nonexplicit_LHS, need_hessian_nonexplicit_LHS, need_old_value_nonexplicit_LHS, need_old_gradient_nonexplicit_LHS, need_old_hessian_nonexplicit_LHS, need_value_change_nonexplicit_LHS, need_gradient_change_nonexplicit_LHS, need_hessian_change_nonexplicit_LHS, need_value_residual_entry, need_gradient_residual_entry, single_var_nonlinear_LHS);
 
             //std::cout << "LHS Nonlinear flag for var " << i << " :" << single_var_nonlinear_LHS << std::endl;
 
@@ -172,7 +178,108 @@ void EquationDependencyParser::parseDependencyListRHS(std::vector<std::string> v
     }
 }
 
-void EquationDependencyParser::parseDependencyListLHS(std::vector<std::string> var_name, std::vector<PDEType> var_eq_type, unsigned int var_index, std::string value_dependencies, std::string gradient_dependencies, std::vector<bool> & need_value, std::vector<bool> & need_gradient, std::vector<bool> & need_hessian, std::vector<bool> & need_value_change, std::vector<bool> & need_gradient_change, std::vector<bool> & need_hessian_change, bool & need_value_residual, bool & need_gradient_residual, bool & is_nonlinear){
+void EquationDependencyParser::parseDependencyListImplicitRHS(std::vector<std::string> var_name, std::vector<PDEType> var_eq_type, unsigned int var_index, std::string value_dependencies, std::string gradient_dependencies, std::vector<bool> & need_value, std::vector<bool> & need_gradient, std::vector<bool> & need_hessian, std::vector<bool> & need_old_value, std::vector<bool> & need_old_gradient, std::vector<bool> & need_old_hessian, bool & need_value_residual, bool & need_gradient_residual, bool & is_nonlinear){
+  
+  // Split the dependency strings into lists of entries
+  std::vector<std::string> split_value_dependency_list = dealii::Utilities::split_string_list(value_dependencies);
+  std::vector<std::string> split_gradient_dependency_list = dealii::Utilities::split_string_list(gradient_dependencies);
+  
+  // Check if either is empty and set need_value_residual and need_gradient residual appropriately
+  if (split_value_dependency_list.size() > 0){
+    need_value_residual = true;
+  }
+  else {
+    need_value_residual = false;
+  }
+  
+  if (split_gradient_dependency_list.size() > 0){
+    need_gradient_residual = true;
+  }
+  else {
+    need_gradient_residual = false;
+  }
+  
+  // Merge the lists of dependency entries
+  std::vector<std::string> split_dependency_list = split_value_dependency_list;
+  split_dependency_list.insert(split_dependency_list.end(),split_gradient_dependency_list.begin(),split_gradient_dependency_list.end());
+  
+  // Cycle through each dependency entry
+  // NOTE: This section is pretty confusing I think it needs refactoring or more comments
+  is_nonlinear = false;
+  for (unsigned int dep=0; dep<split_dependency_list.size(); dep++){
+    bool dependency_entry_assigned = false;
+    
+    for (unsigned int var=0; var<var_name.size(); var++){
+      
+      // Create grad() and hess() variants of the variable name
+      std::string grad_var_name = {"grad()"};
+      grad_var_name.insert(--grad_var_name.end(),var_name.at(var).begin(),var_name.at(var).end());
+      
+      std::string hess_var_name = {"hess()"};
+      hess_var_name.insert(--hess_var_name.end(),var_name.at(var).begin(),var_name.at(var).end());
+
+      std::string val_old_var_name = {"old()"};
+      val_old_var_name.insert(--val_old_var_name.end(),var_name.at(var).begin(),var_name.at(var).end());
+      
+      std::string grad_old_var_name = {"grad(old())"};
+      grad_old_var_name.insert(--(--grad_old_var_name.end()),var_name.at(var).begin(),var_name.at(var).end());
+      
+      std::string hess_old_var_name = {"hess(old())"};
+      hess_old_var_name.insert(--(--hess_old_var_name.end()),var_name.at(var).begin(),var_name.at(var).end());
+
+      
+      if (split_dependency_list.at(dep) == var_name.at(var)){
+        need_value.at(var) = true;
+        dependency_entry_assigned = true;
+        if ( (var_eq_type[var_index] != EXPLICIT_TIME_DEPENDENT) && (var_index != var) && (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+          is_nonlinear = true;
+        }
+      }
+      else if (split_dependency_list.at(dep) == grad_var_name){
+        need_gradient.at(var) = true;
+        dependency_entry_assigned = true;
+        if ( (var_eq_type[var_index] != EXPLICIT_TIME_DEPENDENT) && (var_index != var) && (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+          is_nonlinear = true;
+        }
+      }
+      else if (split_dependency_list.at(dep) == hess_var_name){
+        need_hessian.at(var) = true;
+        dependency_entry_assigned = true;
+        if ( (var_eq_type[var_index] != EXPLICIT_TIME_DEPENDENT) && (var_index != var) && (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+          is_nonlinear = true;
+        }
+      }
+      else if (split_dependency_list.at(dep) == val_old_var_name){
+        need_old_value.at(var) = true;
+        dependency_entry_assigned = true;
+        if ( (var_eq_type[var_index] != EXPLICIT_TIME_DEPENDENT) && (var_index != var) && (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+          is_nonlinear = true;
+        }
+      }
+      else if (split_dependency_list.at(dep) == grad_old_var_name){
+        need_old_gradient.at(var) = true;
+        dependency_entry_assigned = true;
+        if ( (var_eq_type[var_index] != EXPLICIT_TIME_DEPENDENT) && (var_index != var) && (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+          is_nonlinear = true;
+        }
+      }
+      else if (split_dependency_list.at(dep) == hess_old_var_name){
+        need_old_hessian.at(var) = true;
+        dependency_entry_assigned = true;
+        if ( (var_eq_type[var_index] != EXPLICIT_TIME_DEPENDENT) && (var_index != var) && (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+          is_nonlinear = true;
+        }
+      }
+    }
+    if (!dependency_entry_assigned) {
+      std::cerr << "PRISMS-PF Error: Dependency entry " << split_dependency_list.at(dep) << " is not valid." << std::endl;
+      abort();
+    }
+  }
+}
+
+
+void EquationDependencyParser::parseDependencyListLHS(std::vector<std::string> var_name, std::vector<PDEType> var_eq_type, unsigned int var_index, std::string value_dependencies, std::string gradient_dependencies, std::vector<bool> & need_value, std::vector<bool> & need_gradient, std::vector<bool> & need_hessian, std::vector<bool> & need_old_value, std::vector<bool> & need_old_gradient, std::vector<bool> & need_old_hessian, std::vector<bool> & need_value_change, std::vector<bool> & need_gradient_change, std::vector<bool> & need_hessian_change, bool & need_value_residual, bool & need_gradient_residual, bool & is_nonlinear){
 
     // Split the dependency strings into lists of entries
     std::vector<std::string> split_value_dependency_list = dealii::Utilities::split_string_list(value_dependencies);
@@ -209,8 +316,17 @@ void EquationDependencyParser::parseDependencyListLHS(std::vector<std::string> v
             std::string hess_var_name = {"hess()"};
             hess_var_name.insert(--hess_var_name.end(),var_name.at(var).begin(),var_name.at(var).end());
 
+            std::string val_old_var_name = {"old()"};
+            val_old_var_name.insert(--val_old_var_name.end(),var_name.at(var).begin(),var_name.at(var).end());
+          
+            std::string grad_old_var_name = {"grad(old())"};
+            grad_old_var_name.insert(--(--grad_old_var_name.end()),var_name.at(var).begin(),var_name.at(var).end());
+          
+            std::string hess_old_var_name = {"hess(old())"};
+            hess_old_var_name.insert(--(--hess_old_var_name.end()),var_name.at(var).begin(),var_name.at(var).end());
+          
             std::string val_change_var_name = {"change()"};
-            val_change_var_name.insert(--val_change_var_name.end(),var_name.at(var).begin(),var_name.at(var).end());
+              val_change_var_name.insert(--val_change_var_name.end(),var_name.at(var).begin(),var_name.at(var).end());
 
             std::string grad_change_var_name = {"grad(change())"};
             grad_change_var_name.insert(--(--grad_change_var_name.end()),var_name.at(var).begin(),var_name.at(var).end());
@@ -239,6 +355,28 @@ void EquationDependencyParser::parseDependencyListLHS(std::vector<std::string> v
                     is_nonlinear = true;
                 }
             }
+            else if (split_dependency_list.at(dep) == val_old_var_name){
+              need_old_value.at(var) = true;
+              dependency_entry_assigned = true;
+              if ( (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+                is_nonlinear = true;
+              }
+            }
+            else if (split_dependency_list.at(dep) == grad_old_var_name){
+              need_old_gradient.at(var) = true;
+              dependency_entry_assigned = true;
+              if ( (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+                is_nonlinear = true;
+              }
+            }
+            else if (split_dependency_list.at(dep) == hess_old_var_name){
+              need_old_hessian.at(var) = true;
+              dependency_entry_assigned = true;
+              if ( (var_eq_type[var] != EXPLICIT_TIME_DEPENDENT) ){
+                is_nonlinear = true;
+              }
+            }
+
             else if (split_dependency_list.at(dep) == val_change_var_name){
                 need_value_change.at(var) = true;
                 dependency_entry_assigned = true;

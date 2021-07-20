@@ -39,7 +39,7 @@ void  MatrixFreePDE<dim,degree>::getLHS(const MatrixFree<dim,double> &data,
 				 const vectorType &src,
 				 const std::pair<unsigned int,unsigned int> &cell_range) const{
 
-    variableContainer<dim,degree,dealii::VectorizedArray<double> > variable_list(data,userInputs.varInfoListLHS,userInputs.varChangeInfoListLHS);
+    variableContainer<dim,degree,dealii::VectorizedArray<double> > variable_list(data,userInputs.varInfoListLHS,userInputs.varChangeInfoListLHS, userInputs.varOldInfoListLHS);
 
 	//loop over cells
 	for (unsigned int cell=cell_range.first; cell<cell_range.second; ++cell){
@@ -48,7 +48,8 @@ void  MatrixFreePDE<dim,degree>::getLHS(const MatrixFree<dim,double> &data,
         //variable_list.reinit_and_eval_LHS(src,solutionSet,cell,currentFieldIndex);
         variable_list.reinit_and_eval(solutionSet,cell);
         variable_list.reinit_and_eval_change_in_solution(src,cell,currentFieldIndex);
-
+        variable_list.reinit_and_eval_old_solution(oldSolutionSet,cell);
+    
 		unsigned int num_q_points = variable_list.get_num_q_points();
 
 		//loop over quadrature points

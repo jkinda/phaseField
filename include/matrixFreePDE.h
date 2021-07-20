@@ -182,6 +182,8 @@ class MatrixFreePDE:public Subscriptor
   std::vector<IndexSet*>               locally_relevant_dofsSet_nonconst;
   /*Vector all the solution vectors in the problem. In a multi-field problem, each primal field has a solution vector associated with it.*/
   std::vector<vectorType*>             solutionSet;
+  //Old solution (required by implicit method
+  std::vector<vectorType*>             oldSolutionSet;
   /*Vector all the residual (RHS) vectors in the problem. In a multi-field problem, each primal field has a residual vector associated with it.*/
   std::vector<vectorType*>             residualSet;
   /*Vector of parallel solution transfer objects. This is used only when adaptive meshing is enabled.*/

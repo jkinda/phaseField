@@ -79,13 +79,14 @@ void MatrixFreePDE<dim,degree>::getNonexplicitRHS(const MatrixFree<dim,double> &
                                         const std::vector<vectorType*> &src,
                                         const std::pair<unsigned int,unsigned int> &cell_range) const{
 
-    variableContainer<dim,degree,dealii::VectorizedArray<double> > variable_list(data,userInputs.varInfoListNonexplicitRHS);
+    variableContainer<dim,degree,dealii::VectorizedArray<double> > variable_list(data,userInputs.varInfoListNonexplicitRHS,userInputs.varOldInfoListNonexplicitRHS);
 
     //loop over cells
     for (unsigned int cell=cell_range.first; cell<cell_range.second; ++cell){
 
         // Initialize, read DOFs, and set evaulation flags for each variable
         variable_list.reinit_and_eval(src, cell);
+        variable_list.reinit_and_eval_old_solution(oldSolutionSet, cell);
 
         unsigned int num_q_points = variable_list.get_num_q_points();
 

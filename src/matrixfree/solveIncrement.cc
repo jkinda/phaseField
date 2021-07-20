@@ -11,14 +11,23 @@ void MatrixFreePDE<dim,degree>::solveIncrement(bool skip_time_dependent){
     computing_timer.enter_section("matrixFreePDE: solveIncrements");
     Timer time;
     char buffer[200];
+  
+    //For Implicit solver
+    //*oldSolutionSet = *solutionSet;
+    //oldSolutionSet = solutionSet;
+    for(unsigned int fieldIndex=0; fieldIndex<fields.size(); fieldIndex++){
+      for (unsigned int dof=0; dof<solutionSet[fieldIndex]->local_size(); ++dof){
+        oldSolutionSet[fieldIndex]->local_element(dof)= solutionSet[fieldIndex]->local_element(dof);
+      }
+    }
 
-    // Get the RHS of the explicit equations
+    // Get the RHS of the explicit equations (To calculate residualSet)
     if (hasExplicitEquation && !skip_time_dependent){
         computeExplicitRHS();
     }
 
 
-    //solve for each field
+    //solve for each explicit time-dependent field
     for(unsigned int fieldIndex=0; fieldIndex<fields.size(); fieldIndex++){
         currentFieldIndex = fieldIndex; // Used in computeLHS()
 
@@ -82,9 +91,11 @@ void MatrixFreePDE<dim,degree>::solveIncrement(bool skip_time_dependent){
             // this is a little redundant, but hopefully not too terrible
             computeNonexplicitRHS();
 
+          //Loop over field variables
             for(unsigned int fieldIndex=0; fieldIndex<fields.size(); fieldIndex++){
                 currentFieldIndex = fieldIndex; // Used in computeLHS()
 
+              //Section to solve time-independent or implicit time dependent-equations
                 if ( (fields[fieldIndex].pdetype == IMPLICIT_TIME_DEPENDENT && !skip_time_dependent) || fields[fieldIndex].pdetype == TIME_INDEPENDENT){
 
                     if (currentIncrement%userInputs.skip_print_steps==0 && userInputs.var_nonlinear[fieldIndex]){

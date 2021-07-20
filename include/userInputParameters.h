@@ -110,6 +110,14 @@ public:
 	std::vector<variable_info> varInfoListLHS;
     std::vector<variable_info> varChangeInfoListLHS;
 
+  // Variables needed to store information about old timestep
+  // (Needed by implicit solver)
+  unsigned int num_var_old_nonexplicit_RHS;
+  std::vector<variable_info> varOldInfoListNonexplicitRHS;
+  
+  unsigned int num_var_old_LHS;
+  std::vector<variable_info> varOldInfoListLHS;
+  
 	// Variables for loading in initial conditions
 	std::vector<bool> load_ICs;
 	std::vector<bool> load_parallel_file;

@@ -37,8 +37,11 @@ public:
 
     // Constructors
 
-    // Standard contructor, used for most situations
-    variableContainer(const dealii::MatrixFree<dim,double> &data, std::vector<variable_info> _varInfoList, std::vector<variable_info> _varChangeInfoList);
+    // Standard contructor, where change and all values may be needed
+    variableContainer(const dealii::MatrixFree<dim,double> &data, std::vector<variable_info> _varInfoList, std::vector<variable_info> _varChangeInfoList, std::vector<variable_info> _varOldInfoList);
+    //Adding constructor for when only old values are needed (for implicit solver)
+    variableContainer(const dealii::MatrixFree<dim,double> &data, std::vector<variable_info> _varInfoList, std::vector<variable_info> _varOldInfoList);
+  //Constructor for when only _varInfoList is needed
     variableContainer(const dealii::MatrixFree<dim,double> &data, std::vector<variable_info> _varInfoList);
     // Nonstandard constructor, used when only one index of "data" should be used, use with care!
     variableContainer(const dealii::MatrixFree<dim,double> &data, std::vector<variable_info> _varInfoList, unsigned int fixed_index);
@@ -50,6 +53,14 @@ public:
     dealii::Tensor<1, dim, T > get_vector_value(unsigned int global_variable_index) const;
     dealii::Tensor<2, dim, T > get_vector_gradient(unsigned int global_variable_index) const;
     dealii::Tensor<3, dim, T > get_vector_hessian(unsigned int global_variable_index) const;
+  
+    // Methods to get the old value/grad/hess in the residual method (required for implicit method)
+    T get_old_scalar_value(unsigned int global_variable_index) const;
+    dealii::Tensor<1, dim, T > get_old_scalar_gradient(unsigned int global_variable_index) const;
+    dealii::Tensor<2, dim, T > get_old_scalar_hessian(unsigned int global_variable_index) const;
+    dealii::Tensor<1, dim, T > get_old_vector_value(unsigned int global_variable_index) const;
+    dealii::Tensor<2, dim, T > get_old_vector_gradient(unsigned int global_variable_index) const;
+    dealii::Tensor<3, dim, T > get_old_vector_hessian(unsigned int global_variable_index) const;
 
     T get_change_in_scalar_value(unsigned int global_variable_index) const;
     dealii::Tensor<1, dim, T > get_change_in_scalar_gradient(unsigned int global_variable_index) const;
@@ -69,12 +80,13 @@ public:
     void set_vector_value_term_LHS(unsigned int global_variable_index, dealii::Tensor<1, dim, T > val);
     void set_vector_gradient_term_LHS(unsigned int global_variable_index, dealii::Tensor<2, dim, T > grad);
 
-
     // Initialize, read DOFs, and set evaulation flags for each variable
     void reinit_and_eval(const std::vector<vectorType*> &src, unsigned int cell);
     void reinit_and_eval_change_in_solution(const vectorType &src, unsigned int cell, unsigned int var_being_solved);
     void reinit_and_eval_LHS(const vectorType &src, const std::vector<vectorType*> solutionSet, unsigned int cell, unsigned int var_being_solved);
-
+  // New method reinit_and_eval_old_solution (required by implicit method)
+    void reinit_and_eval_old_solution(const std::vector<vectorType*> &src, unsigned int cell);
+  
     // Only initialize the FEEvaluation object for each variable (used for post-processing)
     void reinit(unsigned int cell);
 
@@ -100,10 +112,16 @@ private:
 
     std::vector<dealii::FEEvaluation<dim,degree,degree+1,1,double> > scalar_change_in_vars;
     std::vector<dealii::FEEvaluation<dim,degree,degree+1,dim,double> > vector_change_in_vars;
+  
+    //Variables needed in the new method reinit_and_eval_old_solution (for implicit solver)
+    std::vector<dealii::FEEvaluation<dim,degree,degree+1,1,double> > scalar_old_vars;
+    std::vector<dealii::FEEvaluation<dim,degree,degree+1,dim,double> > vector_old_vars;
 
     // Object containing some information about each variable (indices, whether the val/grad/hess is needed, etc)
     std::vector<variable_info> varInfoList;
     std::vector<variable_info> varChangeInfoList;
+    //Adding list of old values (required by implicit method)
+    std::vector<variable_info> varOldInfoList;
 
 };
 

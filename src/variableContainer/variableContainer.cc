@@ -1,12 +1,15 @@
 // All of the methods for the 'variableContainer' class
 #include "../../include/variableContainer.h"
 
+
+// Variant of the constructor where it reads old values (for implicit solver)
 template <int dim, int degree, typename T>
-variableContainer<dim,degree,T>::variableContainer(const dealii::MatrixFree<dim,double> &data, std::vector<variable_info> _varInfoList, std::vector<variable_info> _varChangeInfoList)
+variableContainer<dim,degree,T>::variableContainer(const dealii::MatrixFree<dim,double> &data, std::vector<variable_info> _varInfoList, std::vector<variable_info> _varChangeInfoList, std::vector<variable_info> _varOldInfoList)
 {
     varInfoList = _varInfoList;
     varChangeInfoList = _varChangeInfoList;
-
+    varOldInfoList = _varOldInfoList;
+  
     num_var = varInfoList.size();
 
     for (unsigned int i=0; i < num_var; i++){
@@ -31,7 +34,49 @@ variableContainer<dim,degree,T>::variableContainer(const dealii::MatrixFree<dim,
                 vector_change_in_vars.push_back(var);
             }
         }
+        if (varOldInfoList[i].var_needed){
+            if (varOldInfoList[i].is_scalar){
+              dealii::FEEvaluation<dim,degree,degree+1,1,double> var(data, i);
+              scalar_old_vars.push_back(var);
+            }
+            else {
+              dealii::FEEvaluation<dim,degree,degree+1,dim,double> var(data, i);
+              vector_old_vars.push_back(var);
+            }
+        }
     }
+}
+
+template <int dim, int degree, typename T>
+variableContainer<dim,degree,T>::variableContainer(const dealii::MatrixFree<dim,double> &data, std::vector<variable_info> _varInfoList, std::vector<variable_info> _varOldInfoList)
+{
+  varInfoList = _varInfoList;
+  varOldInfoList = _varOldInfoList;
+  
+  num_var = varInfoList.size();
+  
+  for (unsigned int i=0; i < num_var; i++){
+    if (varInfoList[i].var_needed){
+      if (varInfoList[i].is_scalar){
+        dealii::FEEvaluation<dim,degree,degree+1,1,double> var(data, i);
+        scalar_vars.push_back(var);
+      }
+      else {
+        dealii::FEEvaluation<dim,degree,degree+1,dim,double> var(data, i);
+        vector_vars.push_back(var);
+      }
+      if (varOldInfoList[i].var_needed){
+        if (varOldInfoList[i].is_scalar){
+          dealii::FEEvaluation<dim,degree,degree+1,1,double> var(data, i);
+          scalar_old_vars.push_back(var);
+        }
+        else {
+          dealii::FEEvaluation<dim,degree,degree+1,dim,double> var(data, i);
+          vector_old_vars.push_back(var);
+        }
+      }
+    }
+  }
 }
 
 template <int dim, int degree, typename T>
@@ -80,18 +125,24 @@ variableContainer<dim,degree,T>::variableContainer(const dealii::MatrixFree<dim,
 template <int dim, int degree, typename T>
 void variableContainer<dim,degree,T>::get_JxW(dealii::AlignedVector<T> & JxW){
 
-    if (scalar_vars.size() > 0){
-        scalar_vars[0].fill_JxW_values(JxW);
-    }
-    else if (vector_vars.size() > 0){
-        scalar_change_in_vars[0].fill_JxW_values(JxW);
-    }
-    else if (scalar_change_in_vars.size() > 0){
-        vector_vars[0].fill_JxW_values(JxW);
-    }
-    else {
-        vector_change_in_vars[0].fill_JxW_values(JxW);
-    }
+  if (scalar_vars.size() > 0){
+    scalar_vars[0].fill_JxW_values(JxW);
+  }
+  else if (vector_vars.size() > 0){
+    vector_vars[0].fill_JxW_values(JxW);
+  }
+  else if (scalar_change_in_vars.size() > 0){
+    scalar_change_in_vars[0].fill_JxW_values(JxW);
+  }
+  else if (vector_change_in_vars.size() >0){
+    vector_change_in_vars[0].fill_JxW_values(JxW);
+  }
+  else if (scalar_old_vars.size() > 0){
+    scalar_old_vars[0].fill_JxW_values(JxW);
+  }
+  else if (vector_old_vars.size() >0){
+    vector_old_vars[0].fill_JxW_values(JxW);
+  }
 }
 
 template <int dim, int degree, typename T>
@@ -105,8 +156,14 @@ unsigned int variableContainer<dim,degree,T>::get_num_q_points(){
     else if (scalar_change_in_vars.size() > 0){
         return scalar_change_in_vars[0].n_q_points;
     }
-    else {
+    else if (vector_change_in_vars.size() > 0){
         return vector_change_in_vars[0].n_q_points;
+    }
+    else if (scalar_old_vars.size() > 0){
+      return scalar_old_vars[0].n_q_points;
+    }
+    else if (vector_old_vars.size() > 0){
+      return vector_old_vars[0].n_q_points;
     }
 }
 
@@ -122,9 +179,16 @@ dealii::Point<dim, T> variableContainer<dim,degree,T>::get_q_point_location(){
     else if (scalar_change_in_vars.size() > 0){
         return scalar_change_in_vars[0].quadrature_point(q_point);
     }
-    else {
+    else if (vector_change_in_vars.size() > 0){
         return vector_change_in_vars[0].quadrature_point(q_point);
     }
+    else if (scalar_old_vars.size() > 0){
+      return scalar_old_vars[0].quadrature_point(q_point);
+    }
+    else if (vector_old_vars.size() > 0){
+      return vector_old_vars[0].quadrature_point(q_point);
+    }
+
 }
 
 template <int dim, int degree, typename T>
@@ -163,8 +227,31 @@ void variableContainer<dim,degree,T>::reinit_and_eval_change_in_solution(const v
         vector_change_in_vars[0].read_dof_values(src);
         vector_change_in_vars[0].evaluate(varChangeInfoList[var_being_solved].need_value, varChangeInfoList[var_being_solved].need_gradient, varChangeInfoList[var_being_solved].need_hessian);
     }
-
 }
+
+/**
+ * This is required for implicit method
+ */
+
+template <int dim, int degree, typename T>
+void variableContainer<dim,degree,T>::reinit_and_eval_old_solution(const std::vector<vectorType*> &src, unsigned int cell){
+  
+  for (unsigned int i=0; i<num_var; i++){
+    if (varOldInfoList[i].var_needed){
+      if (varOldInfoList[i].is_scalar) {
+        scalar_old_vars[varOldInfoList[i].scalar_or_vector_index].reinit(cell);
+        scalar_old_vars[varOldInfoList[i].scalar_or_vector_index].read_dof_values(*src[i]);
+        scalar_old_vars[varOldInfoList[i].scalar_or_vector_index].evaluate(varOldInfoList[i].need_value, varOldInfoList[i].need_gradient, varOldInfoList[i].need_hessian);
+      }
+      else {
+        vector_old_vars[varOldInfoList[i].scalar_or_vector_index].reinit(cell);
+        vector_old_vars[varOldInfoList[i].scalar_or_vector_index].read_dof_values(*src[i]);
+        vector_old_vars[varOldInfoList[i].scalar_or_vector_index].evaluate(varOldInfoList[i].need_value, varOldInfoList[i].need_gradient, varOldInfoList[i].need_hessian);
+      }
+    }
+  }
+}
+
 
 
 template <int dim, int degree, typename T>
@@ -315,6 +402,79 @@ dealii::Tensor<3, dim, T > variableContainer<dim,degree,T>::get_vector_hessian(u
         std::cerr << "PRISMS-PF Error: Attempted access of a variable hessian that was not marked as needed in 'equations.cc'. The attempted access was for variable with index " << global_variable_index << " ." << std::endl;
         abort();
     }
+}
+
+// Need to add index checking to these functions for old variables so that an error is thrown if the index wasn't set (required by Implicit method)
+template <int dim, int degree, typename T>
+T variableContainer<dim,degree,T>::get_old_scalar_value(unsigned int global_variable_index) const
+{
+  if (varOldInfoList[global_variable_index].need_value){
+    return scalar_old_vars[varOldInfoList[global_variable_index].scalar_or_vector_index].get_value(q_point);
+  }
+  else {
+    std::cerr << "PRISMS-PF Error: Attempted access of a variable value that was not marked as needed in 'equations.cc'. The attempted access was for variable with index " << global_variable_index << " ." << std::endl;
+    abort();
+  }
+}
+
+template <int dim, int degree, typename T>
+dealii::Tensor<1, dim, T > variableContainer<dim,degree,T>::get_old_scalar_gradient(unsigned int global_variable_index) const
+{
+  if (varOldInfoList[global_variable_index].need_gradient){
+    return scalar_old_vars[varOldInfoList[global_variable_index].scalar_or_vector_index].get_gradient(q_point);
+  }
+  else {
+    std::cerr << "PRISMS-PF Error: Attempted access of a variable gradient that was not marked as needed in 'equations.cc'. The attempted access was for variable with index " << global_variable_index << " ." << std::endl;
+    abort();
+  }
+}
+
+template <int dim, int degree, typename T>
+dealii::Tensor<2, dim, T > variableContainer<dim,degree,T>::get_old_scalar_hessian(unsigned int global_variable_index) const
+{
+  if (varOldInfoList[global_variable_index].need_hessian){
+    return scalar_old_vars[varOldInfoList[global_variable_index].scalar_or_vector_index].get_hessian(q_point);
+  }
+  else {
+    std::cerr << "PRISMS-PF Error: Attempted access of a variable hessian that was not marked as needed in 'equations.cc'. The attempted access was for variable with index " << global_variable_index << " ." << std::endl;
+    abort();
+  }
+}
+
+template <int dim, int degree, typename T>
+dealii::Tensor<1, dim, T > variableContainer<dim,degree,T>::get_old_vector_value(unsigned int global_variable_index) const
+{
+  if (varOldInfoList[global_variable_index].need_value){
+    return vector_vars[varOldInfoList[global_variable_index].scalar_or_vector_index].get_value(q_point);
+  }
+  else {
+    std::cerr << "PRISMS-PF Error: Attempted access of a variable value that was not marked as needed in 'equations.cc'. The attempted access was for variable with index " << global_variable_index << " ." << std::endl;
+    abort();
+  }
+}
+
+template <int dim, int degree, typename T>
+dealii::Tensor<2, dim, T > variableContainer<dim,degree,T>::get_old_vector_gradient(unsigned int global_variable_index) const
+{
+  if (varOldInfoList[global_variable_index].need_gradient){
+    return vector_old_vars[varInfoList[global_variable_index].scalar_or_vector_index].get_gradient(q_point);
+  }
+  else {
+    std::cerr << "PRISMS-PF Error: Attempted access of a variable gradient that was not marked as needed in 'equations.cc'. The attempted access was for variable with index " << global_variable_index << " ." << std::endl;
+    abort();
+  }
+}
+
+template <int dim, int degree, typename T>
+dealii::Tensor<3, dim, T > variableContainer<dim,degree,T>::get_old_vector_hessian(unsigned int global_variable_index) const
+{
+  if (varOldInfoList[global_variable_index].need_hessian){
+    return vector_old_vars[varInfoList[global_variable_index].scalar_or_vector_index].get_hessian(q_point);
+  }
+  else {
+    std::cerr << "PRISMS-PF Error: Attempted access of a variable hessian that was not marked as needed in 'equations.cc'. The attempted access was for variable with index " << global_variable_index << " ." << std::endl;
+    abort();
+  }
 }
 
 // Need to add index checking to these functions so that an error is thrown if the index wasn't set

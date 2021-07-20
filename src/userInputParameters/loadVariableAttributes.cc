@@ -130,6 +130,50 @@ void userInputParameters<dim>::loadVariableAttributes(variableAttributeLoader va
 
         varInfoListNonexplicitRHS.push_back(varInfo);
 	}
+  
+  // Load old variable information for calculating the RHS for nonexplicit equations (for implicit solver)
+  num_var_old_nonexplicit_RHS = 0;
+  for (unsigned int i=0; i<number_of_variables; i++){
+    if (variable_attributes.equation_dependency_parser.need_old_value_nonexplicit_RHS[i] or variable_attributes.equation_dependency_parser.need_old_gradient_nonexplicit_RHS[i] or variable_attributes.equation_dependency_parser.need_old_hessian_nonexplicit_RHS[i]){
+      num_var_old_nonexplicit_RHS++;
+    }
+  }
+  varOldInfoListNonexplicitRHS.reserve(num_var_old_nonexplicit_RHS);
+  scalar_var_index = 0;
+  vector_var_index = 0;
+  for (unsigned int i=0; i<number_of_variables; i++){
+    variable_info varInfo;
+    
+    varInfo.need_value = variable_attributes.equation_dependency_parser.need_old_value_nonexplicit_RHS[i];
+    varInfo.need_gradient = variable_attributes.equation_dependency_parser.need_old_gradient_nonexplicit_RHS[i];
+    varInfo.need_hessian = variable_attributes.equation_dependency_parser.need_old_hessian_nonexplicit_RHS[i];
+    
+    varInfo.global_var_index = i;
+    
+    if (varInfo.need_value or varInfo.need_gradient or varInfo.need_hessian){
+      varInfo.var_needed = true;
+    }
+    else {
+      varInfo.var_needed = false;
+    }
+    
+    if (var_type[i] == SCALAR){
+      varInfo.is_scalar = true;
+      if (varInfo.var_needed){
+        varInfo.scalar_or_vector_index = scalar_var_index;
+        scalar_var_index++;
+      }
+    }
+    else {
+      varInfo.is_scalar = false;
+      if (varInfo.var_needed){
+        varInfo.scalar_or_vector_index = vector_var_index;
+        vector_var_index++;
+      }
+    }
+    
+    varOldInfoListNonexplicitRHS.push_back(varInfo);
+  }
 
 	// Load variable information for calculating the LHS
 	num_var_LHS = 0;
@@ -179,6 +223,53 @@ void userInputParameters<dim>::loadVariableAttributes(variableAttributeLoader va
         varInfoListLHS.push_back(varInfo);
 	}
 
+  // Load old variable information for calculating the LHS (for implicit solver)
+  num_var_old_LHS = 0;
+  for (unsigned int i=0; i<number_of_variables; i++){
+    if (variable_attributes.equation_dependency_parser.need_old_value_nonexplicit_LHS[i] or variable_attributes.equation_dependency_parser.need_old_gradient_nonexplicit_LHS[i] or variable_attributes.equation_dependency_parser.need_old_hessian_nonexplicit_LHS[i]){
+      num_var_old_LHS++;
+    }
+  }
+  
+  varOldInfoListLHS.reserve(num_var_old_LHS);
+  scalar_var_index = 0;
+  vector_var_index = 0;
+  for (unsigned int i=0; i<number_of_variables; i++){
+    variable_info varInfo;
+    
+    varInfo.need_value = variable_attributes.equation_dependency_parser.need_old_value_nonexplicit_LHS[i];
+    varInfo.need_gradient = variable_attributes.equation_dependency_parser.need_old_gradient_nonexplicit_LHS[i];
+    varInfo.need_hessian = variable_attributes.equation_dependency_parser.need_old_hessian_nonexplicit_LHS[i];
+    
+    varInfo.global_var_index = i;
+    
+    
+    if (varInfo.need_value or varInfo.need_gradient or varInfo.need_hessian){
+      varInfo.var_needed = true;
+    }
+    else {
+      varInfo.var_needed = false;
+    }
+    
+    if (var_type[i] == SCALAR){
+      varInfo.is_scalar = true;
+      if (varInfo.var_needed){
+        varInfo.scalar_or_vector_index = scalar_var_index;
+        scalar_var_index++;
+      }
+    }
+    else {
+      varInfo.is_scalar = false;
+      if (varInfo.var_needed){
+        varInfo.scalar_or_vector_index = vector_var_index;
+        vector_var_index++;
+      }
+    }
+    
+    varOldInfoListLHS.push_back(varInfo);
+  }
+
+  // Load variable change information for calculating the LHS
     varChangeInfoListLHS.reserve(num_var_LHS);
 	scalar_var_index = 0;
 	vector_var_index = 0;
