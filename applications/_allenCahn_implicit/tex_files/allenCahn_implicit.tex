@@ -177,47 +177,74 @@
 %*********************************
 \centerline{\Large{\bf PRISMS PhaseField}}
 \smallskip
-\centerline{\Large{\bf Allen-Cahn Dynamics}}
+\centerline{\Large{\bf Allen-Cahn Dynamics (Implicit Solver Formulation)}}
+\smallskip
+\centerline{David Montiel. Kubra Karayagiz and Stephen DeWitt}
 \bigskip
+\bigskip
+\noindent
 Consider a free energy expression of the form:
 \begin{equation}
-  \Pi(\eta, \grad  \eta) = \int_{\Omega}    f( \eta ) + \frac{\kappa}{2} \grad  \eta  \cdot \grad  \eta    ~dV 
+ \mathcal{F}(\eta, \grad  \eta) = \int_{\Omega}    f( \eta ) + \frac{\kappa}{2} \grad  \eta  \cdot \grad  \eta    ~dV 
 \end{equation}
-where $\eta$ is the structural order parameter, and $\kappa$ is the gradient length scale parameter.
-	
-\section{Variational treatment}
-Considering variations on the primal field $\eta$ of the from $\eta+\epsilon w$, we have
-\begin{align}
-\delta \Pi &=  \left. \frac{d}{d\epsilon} \int_{\Omega}  f(\eta+\epsilon w) +  \frac{\kappa}{2} \grad  (\eta+\epsilon w)  \cdot  ~\grad  (\eta+\epsilon w)   ~dV \right\vert_{\epsilon=0} \\
-&=  \int_{\Omega}   w f_{,\eta} +   \kappa \grad w \grad  \eta    ~dV \\
-&=  \int_{\Omega}   w \left( f_{,\eta} -  \kappa \Delta \eta \right)  ~dV  +   \int_{\partial \Omega}   w \kappa \grad \eta \cdot n   ~dS
-\end{align}
-Assuming $\kappa \grad \eta \cdot n = 0$, and using standard variational arguments on the equation $\delta \Pi =0$ we have the expression for chemical potential as
-\begin{equation}
-  \mu  = f_{,\eta} -  \kappa \Delta \eta
-\end{equation}
+where $\eta$ is the structural order parameter ($0<\eta<1$), and $\kappa$ is the gradient length scale parameter.
 
 \section{Kinetics}
-Now the Parabolic PDE for Allen-Cahn dynamics is given by:
+The parabolic PDE for Allen-Cahn dynamics is given by
 \begin{align}
-  \frac{\partial \eta}{\partial t} &= -M~(f_{,\eta} -  \kappa \Delta \eta)
+  \frac{\partial \eta}{\partial t} &= -M\frac{\delta \mathcal{F}}{\delta \eta},
 \end{align}
-where $M$ is the constant mobility. 
+where $M$ is the mobility of the interface. The term $\delta \mathcal{F}/\delta \eta$ is obtained by taking the variational derivative of $ \mathcal{F}$:
+\begin{align}
+\label{ACPDE}
+ \frac{\partial \eta}{\partial t} &= -M(f_{,\eta} -  \kappa \nabla^2\eta),
+\end{align}
+where $f_{,\eta}=\partial f/\partial \eta$.
+	
 \section{Time discretization}
-Considering forward Euler explicit time stepping, we have the time discretized kinetics equation:
+Considering fully implicit time stepping, we have the time discretized kinetics equation:
 \begin{align}
- \eta^{n+1} &= \eta^{n} - \Delta t M~(f_{,\eta}^{n} -  \kappa \Delta \eta^{n})
+\label{discrete_form}
+ \eta^{n} &= \eta^{n-1} - \Delta t M(f_{,\eta}^{n} -  \kappa \nabla^2 \eta^{n})
 \end{align}
- 
+At each time step, it is assumed that we know $\eta^{n-1}$ and need to solve for $\eta^{n}$. The approach in PRISMS-PF is to find the solution for $\eta^{n}$ iteratively by employing a Newton-Picard scheme. 
+\section{Implicit solver formulation}
+\noindent
+We denote the values of $\eta$ for two consecutive Newton iterations as $\eta^{n}_{j-1}$ and $\eta^{n}_{j}$ and define
+\begin{align}
+\label{delta_eta}
+\delta \eta^{n}_{j} &= \eta^{n}_{j} - \eta^{n}_{j-1}.
+\end{align}
+Substituting $\eta^{n}_{j} = \eta^{n}_{j-1} + \delta \eta^{n}_{j}$ into Eq. (\ref{discrete_form}), we get 
+\begin{align}
+\label{discrete_form_exp}
+\eta^{n}_{j-1} + \delta \eta^{n}_{j}  &= \eta^{n-1} 
+- \Delta t M\left[f_{,\eta}(\eta_{j-1}^{n} + \delta \eta^{n}_{j}) -  \kappa \nabla^2 (\eta^{n}_{j-1} + \delta \eta^{n}_{j})\right]
+\end{align}
+Assuming $\delta \eta^{n}_{j}$ is small everywhere, we can expand $f_{,\eta}$ around $\eta_{j-1}^{n}$ to first order:
+\begin{align}
+f_{,\eta}(\eta_{j-1}^{n} + \delta \eta^{n}_{j}) \simeq f_{,\eta}(\eta_{j-1}^{n})  + f_{,\eta\eta}(\eta_{j-1}^{n}) \delta \eta^{n}_{j}.
+\end{align}
+Substituting in Eq. (\ref{discrete_form_exp}), and rearranging the equation so that all terms proportional to $\delta \eta^{n}_{j}$ are on the LHS and remaining terms on the RHS, we get
+\begin{align}
+\label{discrete_final}
+[1 + \Delta t Mf_{,\eta\eta}(\eta_{j-1}^{n})] \delta \eta^{n}_{j} - \Delta t M\kappa \nabla^2  \delta \eta^{n}_{j} &= 
+\eta^{n-1} - \eta^{n}_{j-1} 
+- \Delta t M\left[f_{,\eta}(\eta_{j-1}^{n}) -  \kappa \nabla^2 \eta^{n}_{j-1}\right]
+\end{align}
+
+\section{Solution Scheme}
+At every time step, the known value $\eta^{n-1}$ is taken as the initial guess for the Newton scheme, $\eta^{n}_0$. Then, for every Newton iteration, $\delta \eta^{n}_{j}$ is found using Eq. (\ref{discrete_final}) and $\eta^{n}_{j}$ is updated using Eq. (\ref{delta_eta}). The Newton scheme converges when the norm of $\delta \eta^{n}_{j}$ is smaller than some tolerance value (given by the user) after $N$ steps. At that, $\eta^{n}$ is calculated as $\eta^{n}_{N}$ and the scheme is repeated for the next time step.
+
 \section{Weak formulation}
 In the weak formulation, considering an arbitrary variation $w$, the above equation can be expressed as a residual equation:
-\begin{align}
-\int_{\Omega}   w \eta^{n+1} ~dV&= \int_{\Omega}   w \eta^{n} - w \Delta t M~(f_{,\eta}^{n} -  \kappa \Delta \eta^{n}) ~dV \\
-&= \int_{\Omega}   w ( \underbrace{ \eta^{n} - \Delta t M~f_{,\eta}^{n} }_{r_{\eta}} )  + \grad w \underbrace{ (-\Delta t M \kappa)~ \cdot (\grad \eta^{n})}_{r_{\eta x}} ~dV \quad [\kappa \grad \eta \cdot n = 0 \quad \text{on} \quad \partial \Omega]
-\end{align}
-\vskip 0.25in
-The above values of  $r_{\eta}$ and $r_{\eta x}$ are used to define the residuals in the following parameters file: \\
-\textit{applications/allenCahn/parameters.h}
+%\begin{align}
+%\int_{\Omega}   w \eta^{n+1} ~dV&= \int_{\Omega}   w \eta^{n} - w \Delta t M~(f_{,\eta}^{n} -  \kappa \Delta \eta^{n}) ~dV \\
+%&= \int_{\Omega}   w ( \underbrace{ \eta^{n} - \Delta t M~f_{,\eta}^{n} }_{r_{\eta}} )  + \grad w \underbrace{ (-\Delta t M \kappa)~ \cdot (\grad \eta^{n})}_{r_{\eta x}} ~dV \quad [\kappa \grad \eta \cdot n = 0 \quad \text{on} \quad \partial \Omega]
+%\end{align}
+%\vskip 0.25in
+%The above values of  $r_{\eta}$ and $r_{\eta x}$ are used to define the residuals in the following parameters file: \\
+%\textit{applications/allenCahn/parameters.h}
 
 
 \end{document} 
